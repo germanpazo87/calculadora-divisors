@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Visual de Divisors</title>
+    <style>
+        :root {
+            --primary: #2563eb; /* Blau fort */
+            --secondary: #10b981; /* Verd */
+            --accent: #f59e0b; /* Taronja */
+            --bg: #f8fafc;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: #333; padding: 20px; line-height: 1.6; }
+        h1 { text-align: center; color: var(--primary); }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        /* Controls */
+        .input-section { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; }
+        input[type="number"] { padding: 12px; font-size: 18px; border: 2px solid #e2e8f0; border-radius: 8px; width: 120px; text-align: center; }
+        button.calc-btn { padding: 12px 24px; font-size: 18px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        button.calc-btn:hover { background: #1d4ed8; }
+
+        /* Toggle Modes */
+        .mode-toggle { display: flex; justify-content: center; margin-bottom: 30px; background: #e2e8f0; padding: 5px; border-radius: 10px; display: inline-flex; left: 50%; position: relative; transform: translateX(-50%); }
+        .toggle-btn { padding: 10px 20px; border: none; background: none; cursor: pointer; font-weight: 600; border-radius: 8px; color: #64748b; transition: 0.3s; }
+        .toggle-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* Result Area */
+        #resultArea { min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* Visualització Arc de Sant Martí */
+        .rainbow-container { position: relative; padding-top: 100px; text-align: center; width: 100%; }
+        .numbers-row { display: inline-flex; justify-content: center; gap: 15px; position: relative; z-index: 2; }
+        .num-box { 
+            width: 50px; height: 50px; background: white; border: 2px solid var(--primary); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; font-size: 18px; color: var(--primary);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .svg-arcs { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+        .arc-path { fill: none; stroke-width: 3; opacity: 0.7; transition: all 0.5s ease; }
+        
+        /* Mode "Per Què" */
+        .explanation-step { background: #f1f5f9; padding: 15px; margin-bottom: 10px; border-left: 4px solid var(--secondary); border-radius: 4px; text-align: left; width: 100%; max-width: 600px;}
+        .explanation-step strong { color: var(--primary); }
+        .pair-highlight { background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: var(--primary); }
+        .stop-message { background: #fffbeb; border-left-color: var(--accent); color: #92400e; }
+
+        .hidden { display: none !important; }
+        .error { color: #dc2626; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Calculadora Visual de Divisors</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">Descobreix les parelles amagades dins dels nombres.</p>
+
+        <div class="input-section">
+            <input type="number" id="numberInput" placeholder="Ex: 24" min="1" max="9999">
+            <button class="calc-btn" onclick="calculateDivisors()">Calcular</button>
+        </div>
+
+        <div class="mode-toggle" id="modeToggle">
+            <button class="toggle-btn active" onclick="switchMode('result')">Veure Resultat (L'Arc)</button>
+            <button class="toggle-btn" onclick="switchMode('why')">Veure Per Què (Pas a pas)</button>
+        </div>
+
+        <div id="resultArea">
+            <p style="color: #999;">Introdueix un número per començar...</p>
+        </div>
+    </div>
+
+    <script>
+        let currentDivisors = [];
+        let currentNumber = 0;
+        let currentMode = 'result';
+
+        // Colors per als arcs
+        const arcColors = ['#2563eb', '#10b981', '#f59e0b', '#9333ea', '#db2777', '#0891b2'];
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            if (currentNumber > 0) render();
+        }
+
+        function calculateDivisors() {
+            const input = document.getElementById('numberInput');
+            const num = parseInt(input.value);
+            const resultArea = document.getElementById('resultArea');
+
+            if (!num || num < 1) {
+                resultArea.innerHTML = '<p class="error">Si us plau, introdueix un número enter positiu major que 0.</p>';
+                return;
+            }
+
+            currentNumber = num;
+            currentDivisors = [];
+            let pairs = [];
+
+            // Lògica clau: busquem parelles fins a l'arrel quadrada
+            for (let i = 1; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) {
+                    let partner = num / i;
+                    pairs.push({ small: i, large: partner });
+                    currentDivisors.push(i);
+                    if (i !== partner) {
+                        currentDivisors.push(partner);
+                    }
+                }
+            }
+            currentDivisors.sort((a, b) => a - b);
+            render();
+        }
+
+        function render() {
+            if (currentMode === 'result') {
+                renderRainbowView();
+            } else {
+                renderWhyView();
+            }
+        }
+
+        // --- RENDERITZAT DEL RESULTAT VISUAL (ARC) ---
+        function renderRainbowView() {
+            const resultArea = document.getElementById('resultArea');
+            if (currentDivisors.length === 0) return;
+
+            let html = `<h3>Els divisors de ${currentNumber} són:</h3>`;
+            html += `<div class="rainbow-container">`;
+            html += `<svg class="svg-arcs" id="arcsSvg" xmlns="http://www.w3.org/2000/svg"></svg>`;
+            html += `<div class="numbers-row" id="numbersRow">`;
+            currentDivisors.forEach(div => {
+                html += `<div class="num-box">${div}</div>`;
+            });
+            html += `</div></div>`;
+            resultArea.innerHTML = html;
+
+            // Dibuixar els arcs després que els números estiguin al DOM
+            setTimeout(drawArcs, 50); 
+        }
+
+        function drawArcs() {
+            const svg = document.getElementById('arcsSvg');
+            const numberBoxes = document.querySelectorAll('.num-box');
+            const container = document.querySelector('.rainbow-container');
+            if (!svg || numberBoxes.length === 0) return;
+
+            svg.innerHTML = '';
+            const count = numberBoxes.length;
+            const pairsCount = Math.ceil(count / 2);
+            const containerRect = container.getBoundingClientRect();
+            
+            // Altura base de l'arc més alt
+            const maxArcHeight = Math.min(150, count * 15); 
+
+            for (let i = 0; i < pairsCount; i++) {
+                let leftIndex = i;
+                let rightIndex = count - 1 - i;
+
+                // Si és el número central d'un quadrat perfecte (ex: el 6 del 36), no té arc
+                if (leftIndex === rightIndex) continue;
+
+                const leftBox = numberBoxes[leftIndex].getBoundingClientRect();
+                const rightBox = numberBoxes[rightIndex].getBoundingClientRect();
+
+                // Calculem punts centrals relatius al contenidor SVG
+                const startX = leftBox.left + leftBox.width / 2 - containerRect.left;
+                const endX = rightBox.left + rightBox.width / 2 - containerRect.left;
+                const startY = leftBox.top - containerRect.top + 5; // Un pelet per sobre del cercle
+
+                // Altura de l'arc (els de fora més alts, els de dins més baixos)
+                const arcHeight = maxArcHeight - (i * (maxArcHeight / pairsCount));
+                
+                // Dibuixem la corba de Bézier cúbica
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                const d = `M ${startX} ${startY} C ${startX} ${startY - arcHeight}, ${endX} ${startY - arcHeight}, ${endX} ${startY}`;
+                path.setAttribute("d", d);
+                path.setAttribute("class", "arc-path");
+                path.setAttribute("stroke", arcColors[i % arcColors.length]);
+                svg.appendChild(path);
+            }
+        }
+
+
+        // --- RENDERITZAT DE L'EXPLICACIÓ PAS A PAS ---
+        function renderWhyView() {
+            const resultArea = document.getElementById('resultArea');
+            let html = `<h3>Com hem trobat les parelles del ${currentNumber}?</h3>`;
+            
+            const sqrt = Math.sqrt(currentNumber);
+            let stopPoint = Math.floor(sqrt);
+            
+            html += `<p style="max-width: 600px; margin-bottom: 20px;">El truc és entendre que els divisors sempre venen en <strong>parelles</strong>. Si en trobes un de petit, automàticament trobes el seu company gran fent una divisió. <br><br>Només cal provar fins a l'arrel quadrada de ${currentNumber} (que és aprox. <strong>${sqrt.toFixed(1)}</strong>), perquè després les parelles es repetirien al revés.</p>`;
+
+            for (let i = 1; i <= stopPoint; i++) {
+                if (currentNumber % i === 0) {
+                    let partner = currentNumber / i;
+                    if (i === partner) {
+                         html += `<div class="explanation-step" style="border-color: var(--accent);">
+                                    ✅ Provem el <strong>${i}</strong>: ${currentNumber} ÷ ${i} = <strong>${partner}</strong>.<br>
+                                    La divisió és exacta. Com que el resultat és el mateix, el ${i} és la parella d'ell mateix (és un quadrat perfecte!).
+                                 </div>`;
+                    } else {
+                        html += `<div class="explanation-step">
+                                    ✅ Provem el <strong>${i}</strong>: Fem la divisió ${currentNumber} ÷ ${i} = <strong>${partner}</strong>.<br>
+                                    Com que la divisió és exacta (residu 0), hem trobat una parella: <span class="pair-highlight">(${i} i ${partner})</span>.
+                                 </div>`;
+                    }
+                } else {
+                     html += `<div class="explanation-step" style="border-left-color: #cbd5e1; color: #64748b; opacity: 0.8;">
+                                ❌ Provem el ${i}: ${currentNumber} ÷ ${i} no és exacte. El ${i} no és divisor.
+                             </div>`;
+                }
+            }
+
+            html += `<div class="explanation-step stop-message">
+                        🛑 <strong>Punt d'aturada!</strong> Ja hem arribat a l'arrel quadrada.
+                        <br>Si provéssim el següent número, ens sortiria una parella que ja tenim però al revés (ex: en comptes de 4x6 seria 6x4). Ja els tenim tots!
+                     </div>`;
+
+            resultArea.innerHTML = html;
+        }
+        
+        // Recalcular arcs si es redimensiona la finestra
+        window.addEventListener('resize', drawArcs);
+    </script>
+
+</body>
+</html>
